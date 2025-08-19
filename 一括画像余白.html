@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>画像一括正方形加工アプリ</title>
+    <!-- Tailwind CSSを読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ★★★ 変更点: JSZipライブラリを再度読み込み ★★★ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        /* 全体のフォント設定 */
+        body {
+            font-family: 'Inter', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif';
+        }
+        /* ローディングスピナーのスタイル */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-6 max-w-4xl">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">画像一括正方形加工</h1>
+            <p class="text-gray-600 mt-2">複数の画像を一度に選択し、お好みの正方形サイズに変換します。</p>
+        </header>
+
+        <main>
+            <!-- ステップ1: 画像選択エリア -->
+            <div id="step1" class="bg-white p-6 rounded-xl shadow-lg mb-6">
+                <h2 class="text-xl font-semibold mb-4 border-b pb-2">ステップ1: 画像を選択</h2>
+                <label for="image-input" class="w-full h-32 flex flex-col justify-center items-center bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 002-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span class="mt-2 text-sm text-gray-500">ここをタップして画像を選択</span>
+                    <span class="text-xs text-gray-400">（複数選択できます）</span>
+                </label>
+                <input type="file" id="image-input" class="hidden" multiple accept="image/*">
+                
+                <!-- 選択した画像のプレビューエリア -->
+                <div id="preview-container" class="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4"></div>
+            </div>
+
+            <!-- ステップ2: 加工方法を選択 -->
+            <div id="step2" class="bg-white p-6 rounded-xl shadow-lg mb-6 hidden">
+                <h2 class="text-xl font-semibold mb-4 border-b pb-2">ステップ2: 加工方法を選択</h2>
+                <div id="controls" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button data-mode="fitHeight" class="process-btn bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-all transform hover:scale-105 shadow-md">
+                        <span class="block text-lg">縦に合わせる</span>
+                        <span class="block text-xs font-normal">(縦の長さを基準に正方形化し、横を切り取り)</span>
+                    </button>
+                    <button data-mode="fitWidth" class="process-btn bg-green-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-600 transition-all transform hover:scale-105 shadow-md">
+                        <span class="block text-lg">横に合わせる</span>
+                        <span class="block text-xs font-normal">(横の長さを基準に正方形化し、縦を切り取り)</span>
+                    </button>
+                    <button data-mode="addPadding" class="process-btn bg-purple-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-600 transition-all transform hover:scale-105 shadow-md">
+                        <span class="block text-lg">余白を追加</span>
+                        <span class="block text-xs font-normal">(画像を縮小し、上下左右に白い余白を追加)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ステップ3: 結果とダウンロード -->
+            <div id="step3" class="bg-white p-6 rounded-xl shadow-lg hidden">
+                <div class="flex justify-between items-center border-b pb-2 mb-4">
+                    <h2 class="text-xl font-semibold">ステップ3: 加工結果</h2>
+                    <button id="reset-btn" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-1 px-3 rounded-lg transition-colors">やり直す</button>
+                </div>
+
+                <!-- ローディング表示 -->
+                <div id="loading" class="flex flex-col items-center justify-center py-8 hidden">
+                    <div class="loader"></div>
+                    <p class="mt-4 text-gray-600">画像を処理中です...</p>
+                </div>
+                
+                <div id="save-instructions" class="hidden text-center bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg mb-4">
+                    <p class="font-bold">画像を保存する方法</p>
+                    <p class="text-sm">下の「一括ダウンロード」ボタン、または画像を個別にタップして保存してください。</p>
+                </div>
+
+                <!-- 加工結果の表示エリア -->
+                <div id="results-container" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4"></div>
+                
+                <!-- ★★★ 変更点: ダウンロードボタンを復活 ★★★ -->
+                <div id="download-section" class="mt-6 text-center hidden">
+                    <button id="download-all-btn" class="bg-red-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-red-600 transition-all transform hover:scale-105 shadow-lg text-lg">
+                        ZIPで一括ダウンロード
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <footer class="text-center mt-8 text-sm text-gray-500">
+            <p>&copy; 2024 Image Square Processor. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        // DOM要素の取得
+        const imageInput = document.getElementById('image-input');
+        const previewContainer = document.getElementById('preview-container');
+        const resultsContainer = document.getElementById('results-container');
+        const controls = document.getElementById('controls');
+        const loading = document.getElementById('loading');
+        const resetBtn = document.getElementById('reset-btn');
+        const saveInstructions = document.getElementById('save-instructions');
+        const downloadSection = document.getElementById('download-section');
+        const downloadAllBtn = document.getElementById('download-all-btn');
+
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+        const step3 = document.getElementById('step3');
+
+        // 状態管理用の変数
+        let selectedFiles = [];
+        // ★★★ 変更点: 加工済み画像データを保持する配列 ★★★
+        let processedImages = [];
+
+        // ファイル選択時の処理
+        imageInput.addEventListener('change', (event) => {
+            selectedFiles = Array.from(event.target.files);
+            if (selectedFiles.length === 0) return;
+
+            previewContainer.innerHTML = '';
+            resultsContainer.innerHTML = '';
+            processedImages = [];
+
+            selectedFiles.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const imgElement = document.createElement('img');
+                    imgElement.src = e.target.result;
+                    imgElement.className = 'w-full h-auto object-cover rounded-lg shadow-md';
+                    previewContainer.appendChild(imgElement);
+                };
+                reader.readAsDataURL(file);
+            });
+            
+            step2.classList.remove('hidden');
+            step3.classList.add('hidden');
+            saveInstructions.classList.add('hidden');
+            downloadSection.classList.add('hidden');
+        });
+
+        // 加工ボタンのクリックイベント
+        controls.addEventListener('click', (event) => {
+            const button = event.target.closest('.process-btn');
+            if (!button) return;
+
+            const mode = button.dataset.mode;
+            processImages(mode);
+        });
+        
+        // リセットボタンの処理
+        resetBtn.addEventListener('click', () => {
+            selectedFiles = [];
+            processedImages = [];
+            imageInput.value = '';
+
+            previewContainer.innerHTML = '';
+            resultsContainer.innerHTML = '';
+            step1.classList.remove('hidden');
+            step2.classList.add('hidden');
+            step3.classList.add('hidden');
+        });
+
+        // 画像処理のメイン関数
+        async function processImages(mode) {
+            if (selectedFiles.length === 0) {
+                console.warn('先に画像を選択してください。');
+                return;
+            }
+
+            step3.classList.remove('hidden');
+            loading.classList.remove('hidden');
+            resultsContainer.innerHTML = '';
+            saveInstructions.classList.add('hidden');
+            downloadSection.classList.add('hidden');
+            processedImages = [];
+
+            const processingPromises = selectedFiles.map((file, index) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
+
+                            if (mode === 'fitHeight') {
+                                canvas.width = img.height;
+                                canvas.height = img.height;
+                                sWidth = img.height;
+                                sx = (img.width - sWidth) / 2;
+                            } else if (mode === 'fitWidth') {
+                                canvas.width = img.width;
+                                canvas.height = img.width;
+                                sHeight = img.width;
+                                sy = (img.height - sHeight) / 2;
+                            } else if (mode === 'addPadding') {
+                                const baseSize = Math.max(img.width, img.height);
+                                const canvasSize = baseSize * 1.1;
+                                canvas.width = canvasSize;
+                                canvas.height = canvasSize;
+                                ctx.fillStyle = 'white';
+                                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                                const dx = (canvasSize - img.width) / 2;
+                                const dy = (canvasSize - img.height) / 2;
+                                ctx.drawImage(img, dx, dy);
+                                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                                resolve({ dataUrl, name: `processed_${index}_${file.name}` });
+                                return;
+                            }
+                            
+                            ctx.fillStyle = 'white';
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+                            
+                            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                            resolve({ dataUrl, name: `processed_${index}_${file.name}` });
+                        };
+                        img.onerror = reject;
+                        img.src = e.target.result;
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            });
+
+            try {
+                const results = await Promise.all(processingPromises);
+                // ★★★ 変更点: 結果をグローバル変数に保存 ★★★
+                processedImages = results;
+                loading.classList.add('hidden');
+                
+                results.forEach(result => {
+                    const link = document.createElement('a');
+                    link.href = result.dataUrl;
+                    link.target = '_blank';
+                    link.download = result.name;
+
+                    const imgElement = document.createElement('img');
+                    imgElement.src = result.dataUrl;
+                    imgElement.className = 'w-full h-auto object-cover rounded-lg shadow-md cursor-pointer hover:opacity-80 transition-opacity';
+                    
+                    link.appendChild(imgElement);
+                    resultsContainer.appendChild(link);
+                });
+                
+                saveInstructions.classList.remove('hidden');
+                // ★★★ 変更点: ダウンロードセクションを表示 ★★★
+                downloadSection.classList.remove('hidden');
+
+            } catch (error) {
+                console.error('画像処理中にエラーが発生しました:', error);
+                loading.classList.add('hidden');
+                resultsContainer.innerHTML = `<p class="text-red-500 col-span-full text-center">画像処理中にエラーが発生しました。</p>`;
+            }
+        }
+
+        // ★★★ 変更点: 全画像ダウンロード処理を復活 ★★★
+        downloadAllBtn.addEventListener('click', async () => {
+            if (processedImages.length === 0) return;
+
+            const zip = new JSZip();
+            
+            for (const image of processedImages) {
+                const base64Data = image.dataUrl.split(',')[1];
+                zip.file(image.name, base64Data, { base64: true });
+            }
+
+            zip.generateAsync({ type: 'blob' })
+                .then(function(content) {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(content);
+                    link.download = 'processed_images.zip';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                });
+        });
+    </script>
+</body>
+</html>
