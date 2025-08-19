@@ -125,6 +125,8 @@
         let showGrid = false;
         let gridTimeout = null;
         let initialTransformState = null;
+        let initialPinchDistance = 0; // ピンチ操作用
+        let pinchStartScale = 1; // ピンチ操作用
 
         // --- イベントリスナー ---
         imageInput.addEventListener('change', handleFileSelect);
@@ -253,7 +255,6 @@
                     if (!imageTransforms[currentEditIndex].initialized) {
                         initializeImageTransform();
                     }
-                    // ★★★ 変更点: 編集開始時の状態をここで保存 ★★★
                     initialTransformState = { ...imageTransforms[currentEditIndex] };
                     drawEditorCanvas();
                 };
@@ -290,7 +291,7 @@
         // --- エディタ描画 & 操作 ---
         function setupEditorCanvas() {
             const container = editorView.querySelector('.bg-gray-200');
-            const containerWidth = container.clientWidth - 32; // paddingを考慮
+            const containerWidth = container.clientWidth - 32;
             editorCanvas.width = containerWidth;
             editorCanvas.height = containerWidth;
         }
@@ -298,7 +299,8 @@
         function initializeImageTransform() {
             const canvas = editorCanvas;
             const img = currentImage;
-            const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.88;
+            // ★★★ 変更点: 余白を15%に(0.88 -> 0.85) ★★★
+            const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.85;
             const x = (canvas.width - img.width * scale) / 2;
             const y = (canvas.height - img.height * scale) / 2;
             imageTransforms[currentEditIndex] = { x, y, scale, initialized: true };
@@ -349,23 +351,78 @@
         zoomOutBtn.addEventListener('click', () => changeZoom(0.9));
         editorCanvas.addEventListener('wheel', e => { e.preventDefault(); changeZoom(e.deltaY > 0 ? 0.95 : 1.05); });
         
+        // ★★★ 新機能: ピンチ操作のイベントリスナー ★★★
+        editorCanvas.addEventListener('touchstart', handleTouchStart);
+        editorCanvas.addEventListener('touchmove', handleTouchMove);
+        editorCanvas.addEventListener('touchend', handleTouchEnd);
+        
         editorCanvas.addEventListener('mousedown', e => { isDragging = true; startDrag = { x: e.clientX, y: e.clientY }; showGrid = true; drawEditorCanvas(); });
-        editorCanvas.addEventListener('touchstart', e => { isDragging = true; startDrag = { x: e.touches[0].clientX, y: e.touches[0].clientY }; showGrid = true; drawEditorCanvas(); });
         window.addEventListener('mouseup', () => { if(isDragging) { isDragging = false; showGrid = false; drawEditorCanvas(); }});
-        window.addEventListener('touchend', () => { if(isDragging) { isDragging = false; showGrid = false; drawEditorCanvas(); }});
         window.addEventListener('mousemove', handleDrag);
-        window.addEventListener('touchmove', handleDrag);
 
         function handleDrag(e) {
             if (!isDragging) return;
-            const clientX = e.clientX || e.touches[0].clientX;
-            const clientY = e.clientY || e.touches[0].clientY;
+            const clientX = e.clientX;
+            const clientY = e.clientY;
             const dx = clientX - startDrag.x;
             const dy = clientY - startDrag.y;
             imageTransforms[currentEditIndex].x += dx;
             imageTransforms[currentEditIndex].y += dy;
             startDrag = { x: clientX, y: clientY };
             drawEditorCanvas();
+        }
+        
+        // ★★★ 新機能: ピンチ操作のヘルパー関数 ★★★
+        function getPinchDistance(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            if (e.touches.length === 2) {
+                isDragging = false;
+                initialPinchDistance = getPinchDistance(e.touches);
+                pinchStartScale = imageTransforms[currentEditIndex].scale;
+                showGrid = true;
+                drawEditorCanvas();
+            } else if (e.touches.length === 1) {
+                isDragging = true;
+                startDrag = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                showGrid = true;
+                drawEditorCanvas();
+            }
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (e.touches.length === 2 && initialPinchDistance > 0) {
+                const newPinchDistance = getPinchDistance(e.touches);
+                const scaleFactor = newPinchDistance / initialPinchDistance;
+                imageTransforms[currentEditIndex].scale = pinchStartScale * scaleFactor;
+                drawEditorCanvas();
+            } else if (e.touches.length === 1 && isDragging) {
+                const clientX = e.touches[0].clientX;
+                const clientY = e.touches[0].clientY;
+                const dx = clientX - startDrag.x;
+                const dy = clientY - startDrag.y;
+                imageTransforms[currentEditIndex].x += dx;
+                imageTransforms[currentEditIndex].y += dy;
+                startDrag = { x: clientX, y: clientY };
+                drawEditorCanvas();
+            }
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            isDragging = false;
+            initialPinchDistance = 0;
+            if (gridTimeout) clearTimeout(gridTimeout);
+            gridTimeout = setTimeout(() => {
+                showGrid = false;
+                drawEditorCanvas();
+            }, 500);
         }
         
         // --- 共通ヘルパー関数 ---
@@ -385,7 +442,7 @@
                             ctx.fillRect(0, 0, size, size);
 
                             if (isInitial) {
-                                const scale = Math.min(size / img.width, size / img.height) * 0.88;
+                                const scale = Math.min(size / img.width, size / img.height) * 0.85;
                                 const x = (size - img.width * scale) / 2;
                                 const y = (size - img.height * scale) / 2;
                                 ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
