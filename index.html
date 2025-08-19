@@ -83,12 +83,12 @@
                     <p class="mt-4 text-gray-600">画像を処理中です...</p>
                 </div>
                 
+                <!-- ★★★ 変更点: 保存方法の説明を「長押し」に変更 ★★★ -->
                 <div id="save-instructions" class="hidden text-center bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg mb-4">
                     <p class="font-bold">画像を写真アプリに保存する方法</p>
-                    <p class="text-sm">下の画像をタップし、「画像を保存」を選択してください。</p>
+                    <p class="text-sm">下の画像を長押しして、「写真に追加」または「画像を保存」を選択してください。</p>
                 </div>
 
-                <!-- ★★★ 変更点: 加工結果の表示エリアを縦一列に変更 ★★★ -->
                 <div id="results-container" class="flex flex-col items-center gap-4"></div>
                 
             </div>
@@ -227,25 +227,20 @@
                 const results = await Promise.all(processingPromises);
                 loading.classList.add('hidden');
                 
-                // ★★★ 変更点: 結果をダウンロードリンクとして表示し、直接保存を促す ★★★
+                // ★★★ 変更点: aタグを削除し、imgタグを直接配置する ★★★
                 results.forEach(result => {
-                    const link = document.createElement('a');
-                    link.href = result.dataUrl;
-                    // download属性でファイル名を指定すると、共有メニューから保存できる
-                    link.download = result.name;
-
                     const imgElement = document.createElement('img');
                     imgElement.src = result.dataUrl;
                     // レイアウトに合わせてクラスを調整
-                    imgElement.className = 'w-full max-w-sm h-auto object-cover rounded-lg shadow-md cursor-pointer hover:opacity-80 transition-opacity';
+                    imgElement.className = 'w-full max-w-sm h-auto object-cover rounded-lg shadow-md';
                     
-                    link.appendChild(imgElement);
-                    resultsContainer.appendChild(link);
+                    resultsContainer.appendChild(imgElement);
                 });
                 
                 saveInstructions.classList.remove('hidden');
 
-            } catch (error) {
+            } catch (error)
+                {
                 console.error('画像処理中にエラーが発生しました:', error);
                 loading.classList.add('hidden');
                 resultsContainer.innerHTML = `<p class="text-red-500 col-span-full text-center">画像処理中にエラーが発生しました。</p>`;
