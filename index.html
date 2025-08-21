@@ -299,8 +299,7 @@
         function initializeImageTransform() {
             const canvas = editorCanvas;
             const img = currentImage;
-            // ★★★ 変更点: 余白を14.5%に(0.85 -> 0.855) ★★★
-            const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.855;
+            const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.8575;
             const x = (canvas.width - img.width * scale) / 2;
             const y = (canvas.height - img.height * scale) / 2;
             imageTransforms[currentEditIndex] = { x, y, scale, initialized: true };
@@ -335,7 +334,6 @@
             editorCtx.stroke();
         }
 
-        // ★★★ 変更点: ズームの中心点を修正 ★★★
         function changeZoom(factor, zoomCenterX = editorCanvas.width / 2, zoomCenterY = editorCanvas.height / 2) {
             const transform = imageTransforms[currentEditIndex];
             
@@ -471,7 +469,7 @@
                             ctx.fillRect(0, 0, size, size);
 
                             if (isInitial) {
-                                const scale = Math.min(size / img.width, size / img.height) * 0.855;
+                                const scale = Math.min(size / img.width, size / img.height) * 0.8575;
                                 const x = (size - img.width * scale) / 2;
                                 const y = (size - img.height * scale) / 2;
                                 ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
