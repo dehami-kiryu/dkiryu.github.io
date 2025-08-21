@@ -36,7 +36,6 @@
                 <input type="file" id="image-input" class="hidden" multiple accept="image/*">
             </div>
             
-            <!-- ★★★ 変更点: グリッド設定を先に ★★★ -->
             <div id="step1-5" class="bg-white p-6 rounded-xl shadow-lg mb-6 hidden">
                 <h2 class="text-xl font-semibold mb-4 border-b pb-2">グリッド設定</h2>
                 <div class="flex items-center space-x-4 mb-4">
@@ -277,10 +276,15 @@
             saveSection.classList.add('hidden');
             saveInstructions.classList.add('hidden');
             
-            const promises = selectedFiles.map((file, index) => createImageData(file, mode, index, null, true));
-            processedImages = await Promise.all(promises);
-            
-            displayResults(mode, isEditable);
+            try {
+                const promises = selectedFiles.map((file, index) => createImageData(file, mode, index, null, true));
+                processedImages = await Promise.all(promises);
+                displayResults(mode, isEditable);
+            } catch (error) {
+                console.error('画像処理中にエラーが発生しました:', error);
+                loading.classList.add('hidden');
+                resultsContainer.innerHTML = `<p class="text-red-500 text-center">画像の処理中にエラーが発生しました。もう一度お試しください。</p>`;
+            }
         }
 
         function displayResults(mode, isEditable) {
@@ -317,10 +321,15 @@
              saveSection.classList.add('hidden');
              saveInstructions.classList.add('hidden');
 
-             const collageResult = await createCollageImage(selectedFiles, rows, cols);
-             processedImages = [collageResult];
-             
-             displayResults('collage', false);
+             try {
+                const collageResult = await createCollageImage(selectedFiles, rows, cols);
+                processedImages = [collageResult];
+                displayResults('collage', false);
+             } catch (error) {
+                console.error('コラージュ生成中にエラーが発生しました:', error);
+                loading.classList.add('hidden');
+                resultsContainer.innerHTML = `<p class="text-red-500 text-center">コラージュの生成中にエラーが発生しました。もう一度お試しください。</p>`;
+             }
         }
 
         // --- 個別編集フロー ---
