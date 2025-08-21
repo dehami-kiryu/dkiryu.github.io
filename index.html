@@ -125,8 +125,8 @@
         let showGrid = false;
         let gridTimeout = null;
         let initialTransformState = null;
-        let initialPinchDistance = 0; // ピンチ操作用
-        let pinchStartScale = 1; // ピンチ操作用
+        let initialPinchDistance = 0;
+        let pinchStartScale = 1;
 
         // --- イベントリスナー ---
         imageInput.addEventListener('change', handleFileSelect);
@@ -299,8 +299,8 @@
         function initializeImageTransform() {
             const canvas = editorCanvas;
             const img = currentImage;
-            // ★★★ 変更点: 余白を15%に(0.88 -> 0.85) ★★★
-            const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.85;
+            // ★★★ 変更点: 余白を14.5%に(0.85 -> 0.855) ★★★
+            const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.855;
             const x = (canvas.width - img.width * scale) / 2;
             const y = (canvas.height - img.height * scale) / 2;
             imageTransforms[currentEditIndex] = { x, y, scale, initialized: true };
@@ -335,9 +335,18 @@
             editorCtx.stroke();
         }
 
-        function changeZoom(factor) {
+        // ★★★ 変更点: ズームの中心点を修正 ★★★
+        function changeZoom(factor, zoomCenterX = editorCanvas.width / 2, zoomCenterY = editorCanvas.height / 2) {
             const transform = imageTransforms[currentEditIndex];
+            
+            const pointX = (zoomCenterX - transform.x) / transform.scale;
+            const pointY = (zoomCenterY - transform.y) / transform.scale;
+
             transform.scale *= factor;
+
+            transform.x = zoomCenterX - pointX * transform.scale;
+            transform.y = zoomCenterY - pointY * transform.scale;
+
             showGrid = true;
             if (gridTimeout) clearTimeout(gridTimeout);
             drawEditorCanvas();
@@ -349,9 +358,14 @@
 
         zoomInBtn.addEventListener('click', () => changeZoom(1.1));
         zoomOutBtn.addEventListener('click', () => changeZoom(0.9));
-        editorCanvas.addEventListener('wheel', e => { e.preventDefault(); changeZoom(e.deltaY > 0 ? 0.95 : 1.05); });
+        editorCanvas.addEventListener('wheel', e => { 
+            e.preventDefault();
+            const rect = editorCanvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            changeZoom(e.deltaY > 0 ? 0.95 : 1.05, mouseX, mouseY);
+        });
         
-        // ★★★ 新機能: ピンチ操作のイベントリスナー ★★★
         editorCanvas.addEventListener('touchstart', handleTouchStart);
         editorCanvas.addEventListener('touchmove', handleTouchMove);
         editorCanvas.addEventListener('touchend', handleTouchEnd);
@@ -372,7 +386,6 @@
             drawEditorCanvas();
         }
         
-        // ★★★ 新機能: ピンチ操作のヘルパー関数 ★★★
         function getPinchDistance(touches) {
             const dx = touches[0].clientX - touches[1].clientX;
             const dy = touches[0].clientY - touches[1].clientY;
@@ -381,7 +394,7 @@
 
         function handleTouchStart(e) {
             e.preventDefault();
-            if (e.touches.length === 2) {
+            if (e.touches.length >= 2) {
                 isDragging = false;
                 initialPinchDistance = getPinchDistance(e.touches);
                 pinchStartScale = imageTransforms[currentEditIndex].scale;
@@ -397,10 +410,26 @@
 
         function handleTouchMove(e) {
             e.preventDefault();
-            if (e.touches.length === 2 && initialPinchDistance > 0) {
+            if (e.touches.length >= 2 && initialPinchDistance > 0) {
                 const newPinchDistance = getPinchDistance(e.touches);
                 const scaleFactor = newPinchDistance / initialPinchDistance;
-                imageTransforms[currentEditIndex].scale = pinchStartScale * scaleFactor;
+                const newScale = pinchStartScale * scaleFactor;
+                
+                const rect = editorCanvas.getBoundingClientRect();
+                const t1 = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+                const t2 = { x: e.touches[1].clientX - rect.left, y: e.touches[1].clientY - rect.top };
+                const zoomCenterX = (t1.x + t2.x) / 2;
+                const zoomCenterY = (t1.y + t2.y) / 2;
+
+                const transform = imageTransforms[currentEditIndex];
+                const pointX = (zoomCenterX - transform.x) / transform.scale;
+                const pointY = (zoomCenterY - transform.y) / transform.scale;
+
+                transform.scale = newScale;
+
+                transform.x = zoomCenterX - pointX * transform.scale;
+                transform.y = zoomCenterY - pointY * transform.scale;
+                
                 drawEditorCanvas();
             } else if (e.touches.length === 1 && isDragging) {
                 const clientX = e.touches[0].clientX;
@@ -442,7 +471,7 @@
                             ctx.fillRect(0, 0, size, size);
 
                             if (isInitial) {
-                                const scale = Math.min(size / img.width, size / img.height) * 0.85;
+                                const scale = Math.min(size / img.width, size / img.height) * 0.855;
                                 const x = (size - img.width * scale) / 2;
                                 const y = (size - img.height * scale) / 2;
                                 ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
