@@ -25,22 +25,20 @@
         <main id="main-content">
             <!-- ステップ1: 画像選択 -->
             <div id="step1" class="bg-white p-6 rounded-xl shadow-lg mb-6">
-                <h2 class="text-xl font-semibold mb-4 border-b pb-2">ステップ1: 画像を選択</h2>
+                <h2 class="text-xl font-semibold mb-4 border-b pb-2">ステップ1: 操作を選択</h2>
                 <div class="space-y-4">
-                    <label id="standard-select-label" class="w-full h-32 flex flex-col justify-center items-center bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                    <button id="standard-select-btn" class="w-full h-32 flex flex-col justify-center items-center bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
                         <svg class="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 002-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        <span class="mt-2 text-sm text-gray-500">1枚ずつ加工する画像を選択</span>
-                    </label>
-                    <button id="collage-select-btn" class="w-full py-3 px-4 bg-indigo-500 text-white font-bold rounded-lg hover:bg-indigo-600 transition-colors">グリッドコラージュを作成</button>
+                        <span class="mt-2 text-sm text-gray-500">1枚ずつ加工する</span>
+                    </button>
+                    <button id="collage-start-btn" class="w-full py-3 px-4 bg-indigo-500 text-white font-bold rounded-lg hover:bg-indigo-600 transition-colors">グリッドコラージュを作成</button>
                 </div>
                 <input type="file" id="image-input" class="hidden" multiple accept="image/*">
-                <div id="preview-container" class="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4"></div>
             </div>
             
-            <!-- ★★★ 新機能: グリッド設定 ★★★ -->
+            <!-- ★★★ 変更点: グリッド設定を先に ★★★ -->
             <div id="step1-5" class="bg-white p-6 rounded-xl shadow-lg mb-6 hidden">
                 <h2 class="text-xl font-semibold mb-4 border-b pb-2">グリッド設定</h2>
-                <p class="mb-4"><span id="image-count">0</span> 枚の画像が選択されています。</p>
                 <div class="flex items-center space-x-4 mb-4">
                     <div>
                         <label for="grid-rows" class="block text-sm font-medium text-gray-700">行 (縦)</label>
@@ -51,13 +49,15 @@
                         <input type="number" id="grid-cols" value="2" min="1" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                     </div>
                 </div>
-                <p id="grid-warning" class="text-red-500 text-sm mb-4 hidden">画像の枚数以上のマス目が必要です。</p>
-                <button id="generate-collage-btn" class="w-full py-3 px-4 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600">コラージュを生成</button>
+                <button id="select-collage-images-btn" class="w-full py-3 px-4 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600">次へ: 画像を選択</button>
+                <p id="collage-instructions" class="text-blue-600 text-sm mt-4"></p>
+                <div id="collage-preview-container" class="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4"></div>
             </div>
 
             <!-- ステップ2: 加工方法を選択 -->
             <div id="step2" class="bg-white p-6 rounded-xl shadow-lg mb-6 hidden">
-                <h2 class="text-xl font-semibold mb-4 border-b pb-2">ステップ2: 加工方法を選択</h2>
+                <h2 class="text-xl font-semibold mb-4 border-b pb-2">ステップ2: プレビューと加工方法の選択</h2>
+                <div id="preview-container" class="mb-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4"></div>
                 <div id="controls" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <button data-mode="fitHeight" class="process-btn bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-all shadow-md">縦に合わせる</button>
                     <button data-mode="fitWidth" class="process-btn bg-green-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-600 transition-all shadow-md">横に合わせる</button>
@@ -106,9 +106,10 @@
     <script>
         // --- DOM要素 ---
         const imageInput = document.getElementById('image-input');
-        const standardSelectLabel = document.getElementById('standard-select-label');
-        const collageSelectBtn = document.getElementById('collage-select-btn');
+        const standardSelectBtn = document.getElementById('standard-select-btn');
+        const collageStartBtn = document.getElementById('collage-start-btn');
         const previewContainer = document.getElementById('preview-container');
+        const collagePreviewContainer = document.getElementById('collage-preview-container');
         const controls = document.getElementById('controls');
         const loading = document.getElementById('loading');
         const resetBtn = document.getElementById('reset-btn');
@@ -129,11 +130,10 @@
         const finishEditingBtn = document.getElementById('finish-editing-btn');
         const step1 = document.getElementById('step1');
         const step1_5 = document.getElementById('step1-5');
-        const imageCount = document.getElementById('image-count');
         const gridRows = document.getElementById('grid-rows');
         const gridCols = document.getElementById('grid-cols');
-        const gridWarning = document.getElementById('grid-warning');
-        const generateCollageBtn = document.getElementById('generate-collage-btn');
+        const collageInstructions = document.getElementById('collage-instructions');
+        const selectCollageImagesBtn = document.getElementById('select-collage-images-btn');
         const step2 = document.getElementById('step2');
         const step3 = document.getElementById('step3');
         document.getElementById('copyright').textContent = `© ${new Date().getFullYear()} Image Square Processor. All rights reserved.`;
@@ -157,9 +157,14 @@
 
         // --- イベントリスナー ---
         imageInput.addEventListener('change', handleFileSelect);
-        standardSelectLabel.addEventListener('click', () => { currentWorkflow = 'standard'; imageInput.click(); });
-        collageSelectBtn.addEventListener('click', () => { currentWorkflow = 'collage'; imageInput.click(); });
-        generateCollageBtn.addEventListener('click', generateCollage);
+        standardSelectBtn.addEventListener('click', () => { currentWorkflow = 'standard'; imageInput.click(); });
+        collageStartBtn.addEventListener('click', () => { currentWorkflow = 'collage'; step1.classList.add('hidden'); step1_5.classList.remove('hidden'); });
+        selectCollageImagesBtn.addEventListener('click', () => {
+            const rows = parseInt(gridRows.value, 10) || 1;
+            const cols = parseInt(gridCols.value, 10) || 1;
+            collageInstructions.textContent = `${rows * cols}枚の画像を選択してください。`;
+            imageInput.click();
+        });
         controls.addEventListener('click', handleProcessRequest);
         resetBtn.addEventListener('click', () => resetApp(true));
         saveAllBtn.addEventListener('click', saveAllImages);
@@ -173,27 +178,45 @@
         function handleFileSelect(event) {
             selectedFiles = Array.from(event.target.files);
             if (selectedFiles.length === 0) return;
-            resetApp(false);
             
-            previewContainer.innerHTML = '';
-            selectedFiles.forEach(file => {
-                const reader = new FileReader();
-                reader.onload = e => {
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.className = 'w-full h-auto object-cover rounded-lg shadow-md';
-                    previewContainer.appendChild(img);
-                };
-                reader.readAsDataURL(file);
-            });
-
             if (currentWorkflow === 'collage') {
-                step1_5.classList.remove('hidden');
-                imageCount.textContent = selectedFiles.length;
-                const suggestion = Math.ceil(Math.sqrt(selectedFiles.length));
-                gridRows.value = suggestion;
-                gridCols.value = suggestion;
-            } else {
+                const rows = parseInt(gridRows.value, 10);
+                const cols = parseInt(gridCols.value, 10);
+                const requiredCount = rows * cols;
+                
+                collagePreviewContainer.innerHTML = '';
+                selectedFiles.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = e => {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'w-full h-auto object-cover rounded-lg shadow-md';
+                        collagePreviewContainer.appendChild(img);
+                    };
+                    reader.readAsDataURL(file);
+                });
+
+                if (selectedFiles.length !== requiredCount) {
+                    collageInstructions.textContent = `${requiredCount}枚選択する必要がありますが、${selectedFiles.length}枚選択されました。もう一度お試しください。`;
+                    imageInput.value = '';
+                    selectedFiles = [];
+                } else {
+                    collageInstructions.textContent = `${selectedFiles.length}枚選択しました。生成を開始します...`;
+                    generateCollage();
+                }
+            } else { // Standard workflow
+                previewContainer.innerHTML = '';
+                selectedFiles.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = e => {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'w-full h-auto object-cover rounded-lg shadow-md';
+                        previewContainer.appendChild(img);
+                    };
+                    reader.readAsDataURL(file);
+                });
+                step1.classList.add('hidden');
                 step2.classList.remove('hidden');
             }
         }
@@ -209,12 +232,13 @@
             if (fullReset) {
                 selectedFiles = [];
                 imageInput.value = '';
+                step1.classList.remove('hidden');
             }
             processedImages = [];
             imageLayers = [];
             currentEditIndex = 0;
             previewContainer.innerHTML = '';
-            resultsContainer.innerHTML = '';
+            collagePreviewContainer.innerHTML = '';
             step1_5.classList.add('hidden');
             step2.classList.add('hidden');
             step3.classList.add('hidden');
@@ -246,6 +270,7 @@
         // --- 画像処理フロー ---
         async function processAndDisplay(mode, isEditable) {
             if (selectedFiles.length === 0) return;
+            step2.classList.add('hidden');
             step3.classList.remove('hidden');
             loading.classList.remove('hidden');
             resultsContainer.innerHTML = '';
@@ -275,19 +300,17 @@
             if (navigator.share && navigator.canShare) {
                 saveSection.classList.remove('hidden');
             }
-            saveInstructions.classList.remove('hidden');
+            if (isEditable) {
+                saveInstructions.classList.remove('hidden');
+            }
         }
 
         // --- コラージュ機能 ---
         async function generateCollage() {
              const rows = parseInt(gridRows.value, 10);
              const cols = parseInt(gridCols.value, 10);
-             if (rows * cols < selectedFiles.length) {
-                 gridWarning.classList.remove('hidden');
-                 return;
-             }
-             gridWarning.classList.add('hidden');
              
+             step1_5.classList.add('hidden');
              step3.classList.remove('hidden');
              loading.classList.remove('hidden');
              resultsContainer.innerHTML = '';
@@ -295,7 +318,7 @@
              saveInstructions.classList.add('hidden');
 
              const collageResult = await createCollageImage(selectedFiles, rows, cols);
-             processedImages = [collageResult]; // 結果は1枚の画像
+             processedImages = [collageResult];
              
              displayResults('collage', false);
         }
