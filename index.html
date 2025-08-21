@@ -26,12 +26,33 @@
             <!-- ステップ1: 画像選択 -->
             <div id="step1" class="bg-white p-6 rounded-xl shadow-lg mb-6">
                 <h2 class="text-xl font-semibold mb-4 border-b pb-2">ステップ1: 画像を選択</h2>
-                <label for="image-input" class="w-full h-32 flex flex-col justify-center items-center bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
-                    <svg class="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 002-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    <span class="mt-2 text-sm text-gray-500">ここをタップして画像を選択</span>
-                </label>
+                <div class="space-y-4">
+                    <label id="standard-select-label" class="w-full h-32 flex flex-col justify-center items-center bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                        <svg class="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 002-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <span class="mt-2 text-sm text-gray-500">1枚ずつ加工する画像を選択</span>
+                    </label>
+                    <button id="collage-select-btn" class="w-full py-3 px-4 bg-indigo-500 text-white font-bold rounded-lg hover:bg-indigo-600 transition-colors">グリッドコラージュを作成</button>
+                </div>
                 <input type="file" id="image-input" class="hidden" multiple accept="image/*">
                 <div id="preview-container" class="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4"></div>
+            </div>
+            
+            <!-- ★★★ 新機能: グリッド設定 ★★★ -->
+            <div id="step1-5" class="bg-white p-6 rounded-xl shadow-lg mb-6 hidden">
+                <h2 class="text-xl font-semibold mb-4 border-b pb-2">グリッド設定</h2>
+                <p class="mb-4"><span id="image-count">0</span> 枚の画像が選択されています。</p>
+                <div class="flex items-center space-x-4 mb-4">
+                    <div>
+                        <label for="grid-rows" class="block text-sm font-medium text-gray-700">行 (縦)</label>
+                        <input type="number" id="grid-rows" value="2" min="1" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label for="grid-cols" class="block text-sm font-medium text-gray-700">列 (横)</label>
+                        <input type="number" id="grid-cols" value="2" min="1" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                </div>
+                <p id="grid-warning" class="text-red-500 text-sm mb-4 hidden">画像の枚数以上のマス目が必要です。</p>
+                <button id="generate-collage-btn" class="w-full py-3 px-4 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600">コラージュを生成</button>
             </div>
 
             <!-- ステップ2: 加工方法を選択 -->
@@ -67,26 +88,13 @@
                     <canvas id="editor-canvas"></canvas>
                 </div>
                 <div class="mt-4 grid grid-cols-4 items-center justify-center gap-2">
-                    <button id="undo-btn" class="p-3 bg-gray-200 rounded-full hover:bg-gray-300 justify-self-center" title="元に戻す">
-                        <svg class="w-5 h-5 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
-                    </button>
-                    <div class="flex items-center gap-2 justify-self-center">
-                        <button id="zoom-out-btn" class="p-3 bg-gray-200 rounded-full hover:bg-gray-300">-</button>
-                        <span class="text-sm">ズーム</span>
-                        <button id="zoom-in-btn" class="p-3 bg-gray-200 rounded-full hover:bg-gray-300">+</button>
-                    </div>
+                    <button id="undo-btn" class="p-3 bg-gray-200 rounded-full hover:bg-gray-300 justify-self-center" title="元に戻す"><svg class="w-5 h-5 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg></button>
+                    <div class="flex items-center gap-2 justify-self-center"><button id="zoom-out-btn" class="p-3 bg-gray-200 rounded-full hover:bg-gray-300">-</button><span class="text-sm">ズーム</span><button id="zoom-in-btn" class="p-3 bg-gray-200 rounded-full hover:bg-gray-300">+</button></div>
                     <button id="add-image-btn" class="p-3 bg-gray-200 rounded-lg hover:bg-gray-300 justify-self-center text-sm">画像追加</button>
                     <input type="file" id="add-image-input" class="hidden" accept="image/*">
-                    <!-- ★★★ 新機能: 削除ボタン ★★★ -->
-                    <button id="delete-layer-btn" class="p-3 bg-red-200 rounded-full hover:bg-red-300 justify-self-center btn-disabled" title="選択した画像を削除">
-                        <svg class="w-5 h-5 text-red-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                           <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.067-2.09.921-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                        </svg>
-                    </button>
+                    <button id="delete-layer-btn" class="p-3 bg-red-200 rounded-full hover:bg-red-300 justify-self-center btn-disabled" title="選択した画像を削除"><svg class="w-5 h-5 text-red-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.067-2.09.921-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg></button>
                 </div>
-                <div class="mt-6">
-                    <button id="finish-editing-btn" class="w-full bg-green-500 text-white font-bold py-3 rounded-lg hover:bg-green-600">この画像の調整を完了</button>
-                </div>
+                <div class="mt-6"><button id="finish-editing-btn" class="w-full bg-green-500 text-white font-bold py-3 rounded-lg hover:bg-green-600">この画像の調整を完了</button></div>
             </div>
         </div>
 
@@ -98,8 +106,9 @@
     <script>
         // --- DOM要素 ---
         const imageInput = document.getElementById('image-input');
+        const standardSelectLabel = document.getElementById('standard-select-label');
+        const collageSelectBtn = document.getElementById('collage-select-btn');
         const previewContainer = document.getElementById('preview-container');
-        const resultsContainer = document.getElementById('results-container');
         const controls = document.getElementById('controls');
         const loading = document.getElementById('loading');
         const resetBtn = document.getElementById('reset-btn');
@@ -119,6 +128,12 @@
         const deleteLayerBtn = document.getElementById('delete-layer-btn');
         const finishEditingBtn = document.getElementById('finish-editing-btn');
         const step1 = document.getElementById('step1');
+        const step1_5 = document.getElementById('step1-5');
+        const imageCount = document.getElementById('image-count');
+        const gridRows = document.getElementById('grid-rows');
+        const gridCols = document.getElementById('grid-cols');
+        const gridWarning = document.getElementById('grid-warning');
+        const generateCollageBtn = document.getElementById('generate-collage-btn');
         const step2 = document.getElementById('step2');
         const step3 = document.getElementById('step3');
         document.getElementById('copyright').textContent = `© ${new Date().getFullYear()} Image Square Processor. All rights reserved.`;
@@ -129,6 +144,7 @@
         let imageLayers = [];
         let currentEditIndex = 0;
         let currentEditorLayers = [];
+        let currentWorkflow = 'standard';
         const editorCtx = editorCanvas.getContext('2d');
         let activeLayer = null;
         let isDragging = false;
@@ -141,6 +157,9 @@
 
         // --- イベントリスナー ---
         imageInput.addEventListener('change', handleFileSelect);
+        standardSelectLabel.addEventListener('click', () => { currentWorkflow = 'standard'; imageInput.click(); });
+        collageSelectBtn.addEventListener('click', () => { currentWorkflow = 'collage'; imageInput.click(); });
+        generateCollageBtn.addEventListener('click', generateCollage);
         controls.addEventListener('click', handleProcessRequest);
         resetBtn.addEventListener('click', () => resetApp(true));
         saveAllBtn.addEventListener('click', saveAllImages);
@@ -155,6 +174,8 @@
             selectedFiles = Array.from(event.target.files);
             if (selectedFiles.length === 0) return;
             resetApp(false);
+            
+            previewContainer.innerHTML = '';
             selectedFiles.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = e => {
@@ -165,7 +186,16 @@
                 };
                 reader.readAsDataURL(file);
             });
-            step2.classList.remove('hidden');
+
+            if (currentWorkflow === 'collage') {
+                step1_5.classList.remove('hidden');
+                imageCount.textContent = selectedFiles.length;
+                const suggestion = Math.ceil(Math.sqrt(selectedFiles.length));
+                gridRows.value = suggestion;
+                gridCols.value = suggestion;
+            } else {
+                step2.classList.remove('hidden');
+            }
         }
         
         function handleProcessRequest(event) {
@@ -185,7 +215,7 @@
             currentEditIndex = 0;
             previewContainer.innerHTML = '';
             resultsContainer.innerHTML = '';
-            step1.classList.toggle('hidden', !fullReset);
+            step1_5.classList.add('hidden');
             step2.classList.add('hidden');
             step3.classList.add('hidden');
             mainContent.classList.remove('hidden');
@@ -248,6 +278,28 @@
             saveInstructions.classList.remove('hidden');
         }
 
+        // --- コラージュ機能 ---
+        async function generateCollage() {
+             const rows = parseInt(gridRows.value, 10);
+             const cols = parseInt(gridCols.value, 10);
+             if (rows * cols < selectedFiles.length) {
+                 gridWarning.classList.remove('hidden');
+                 return;
+             }
+             gridWarning.classList.add('hidden');
+             
+             step3.classList.remove('hidden');
+             loading.classList.remove('hidden');
+             resultsContainer.innerHTML = '';
+             saveSection.classList.add('hidden');
+             saveInstructions.classList.add('hidden');
+
+             const collageResult = await createCollageImage(selectedFiles, rows, cols);
+             processedImages = [collageResult]; // 結果は1枚の画像
+             
+             displayResults('collage', false);
+        }
+
         // --- 個別編集フロー ---
         function openEditorForImage(index, mode) {
             mainContent.classList.add('hidden');
@@ -274,7 +326,7 @@
                 scale: l.scale * scaleFactor
             }));
             
-            initialLayersState = currentEditorLayers.map(l => ({ x: l.x, y: l.y, scale: l.scale }));
+            initialLayersState = JSON.parse(JSON.stringify(currentEditorLayers.map(l => ({ x: l.x, y: l.y, scale: l.scale }))));
             
             activeLayer = null;
             updateDeleteButtonState();
@@ -286,7 +338,7 @@
             finishEditingBtn.textContent = '適用中...';
 
             const index = currentEditIndex;
-            const finalSize = Math.max(currentEditorLayers[0].img.width, currentEditorLayers[0].img.height);
+            const finalSize = Math.max(imageLayers[index][0].img.width, imageLayers[index][0].img.height);
             const editorSize = editorCanvas.width;
             const scaleFactor = finalSize / editorSize;
 
@@ -313,24 +365,18 @@
         
         function undoChanges() {
             if (!initialLayersState) return;
-            currentEditorLayers.forEach((layer, i) => {
-                if(initialLayersState[i]) {
-                    layer.x = initialLayersState[i].x;
-                    layer.y = initialLayersState[i].y;
-                    layer.scale = initialLayersState[i].scale;
+            const restoredLayers = [];
+            initialLayersState.forEach((state, i) => {
+                if (currentEditorLayers[i]) {
+                    restoredLayers.push({
+                        ...currentEditorLayers[i],
+                        x: state.x,
+                        y: state.y,
+                        scale: state.scale
+                    });
                 }
             });
-            // If layers were added/deleted, reset to the initial set of layers
-            if (currentEditorLayers.length !== initialLayersState.length) {
-                 const originalBg = currentEditorLayers[0];
-                 currentEditorLayers = initialLayersState.map((state, i) => ({
-                     ...originalBg, // This is a simplification, assumes only one bg
-                     x: state.x,
-                     y: state.y,
-                     scale: state.scale
-                 }));
-            }
-
+            currentEditorLayers = restoredLayers;
             drawEditorCanvas();
         }
 
@@ -622,6 +668,70 @@
                     reader.readAsDataURL(file);
                 } else {
                     process(null); // layers are already loaded
+                }
+            });
+        }
+        
+        function createCollageImage(files, rows, cols) {
+            return new Promise(async (resolve, reject) => {
+                const OUTPUT_SIZE = 2048;
+                const canvas = document.createElement('canvas');
+                canvas.width = OUTPUT_SIZE;
+                canvas.height = OUTPUT_SIZE;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+
+                const cellWidth = OUTPUT_SIZE / cols;
+                const cellHeight = OUTPUT_SIZE / rows;
+
+                const imagePromises = files.map(file => new Promise((res, rej) => {
+                    const reader = new FileReader();
+                    reader.onload = e => {
+                        const img = new Image();
+                        img.onload = () => res(img);
+                        img.onerror = rej;
+                        img.src = e.target.result;
+                    };
+                    reader.onerror = rej;
+                    reader.readAsDataURL(file);
+                }));
+
+                try {
+                    const loadedImages = await Promise.all(imagePromises);
+                    
+                    for (let i = 0; i < loadedImages.length; i++) {
+                        const img = loadedImages[i];
+                        const rowIndex = Math.floor(i / cols);
+                        const colIndex = i % cols;
+
+                        const cellX = colIndex * cellWidth;
+                        const cellY = rowIndex * cellHeight;
+
+                        const cellAspectRatio = cellWidth / cellHeight;
+                        const imgAspectRatio = img.width / img.height;
+
+                        let sx, sy, sWidth, sHeight;
+
+                        if (imgAspectRatio > cellAspectRatio) { // Image is wider than cell
+                            sHeight = img.height;
+                            sWidth = sHeight * cellAspectRatio;
+                            sx = (img.width - sWidth) / 2;
+                            sy = 0;
+                        } else { // Image is taller than or same aspect as cell
+                            sWidth = img.width;
+                            sHeight = sWidth / cellAspectRatio;
+                            sx = 0;
+                            sy = (img.height - sHeight) / 2;
+                        }
+                        
+                        ctx.drawImage(img, sx, sy, sWidth, sHeight, cellX, cellY, cellWidth, cellHeight);
+                    }
+
+                    resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.9), name: 'collage.jpg' });
+
+                } catch (error) {
+                    reject(error);
                 }
             });
         }
