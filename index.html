@@ -652,28 +652,10 @@
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 const img = new Image();
-                const timeout = 15000; // 15 seconds timeout
-
-                const timer = setTimeout(() => {
-                    reject(new Error(`画像の読み込みがタイムアウトしました: ${file.name}`));
-                }, timeout);
-
-                img.onload = () => {
-                    clearTimeout(timer);
-                    resolve(img);
-                };
-                img.onerror = (err) => {
-                    clearTimeout(timer);
-                    reject(new Error(`画像の読み込みに失敗しました: ${file.name}`));
-                };
-
-                reader.onload = (e) => {
-                    img.src = e.target.result;
-                };
-                reader.onerror = () => {
-                    clearTimeout(timer);
-                    reject(new Error(`ファイルの読み込みに失敗しました: ${file.name}`));
-                };
+                img.onload = () => resolve(img);
+                img.onerror = (err) => reject(new Error(`画像の読み込みに失敗しました: ${file.name}`));
+                reader.onload = (e) => { img.src = e.target.result; };
+                reader.onerror = () => reject(new Error(`ファイルの読み込みに失敗しました: ${file.name}`));
                 reader.readAsDataURL(file);
             });
         }
