@@ -27,7 +27,7 @@
             <div id="step1" class="bg-white p-6 rounded-xl shadow-lg mb-6">
                 <h2 class="text-xl font-semibold mb-4 border-b pb-2">ステップ1: 画像を選択</h2>
                 <label for="image-input" class="w-full h-32 flex flex-col justify-center items-center bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
-                    <svg class="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 002-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <svg class="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     <span class="mt-2 text-sm text-gray-500">ここをタップして画像を選択</span>
                 </label>
                 <input type="file" id="image-input" class="hidden" multiple accept="image/*">
@@ -251,9 +251,23 @@
             editorTitle.textContent = '写真の調整';
             editorProgress.textContent = `画像 ${index + 1} / ${selectedFiles.length}`;
             
+            setupEditorCanvas();
+
+            // If the main image layer needs its initial position and scale calculated for the editor.
+            if (imageLayers[index] && imageLayers[index][0].needsInitialLayout) {
+                const layer = imageLayers[index][0];
+                const img = layer.img;
+                const canvasSize = editorCanvas.width;
+                
+                const scale = Math.min(canvasSize / img.width, canvasSize / img.height) * 0.862;
+                layer.x = (canvasSize - img.width * scale) / 2;
+                layer.y = (canvasSize - img.height * scale) / 2;
+                layer.scale = scale;
+                delete layer.needsInitialLayout; // Flag is no longer needed
+            }
+            
             initialLayersState = JSON.parse(JSON.stringify(imageLayers[index].map(layer => ({...layer, img: null}))));
             
-            setupEditorCanvas();
             drawEditorCanvas();
         }
         
@@ -298,23 +312,59 @@
             reader.onload = e => {
                 const newImg = new Image();
                 newImg.onload = () => {
-                    const canvas = editorCanvas;
-                    const scale = Math.min(canvas.width / newImg.width, canvas.height / newImg.height) * 0.5;
-                    const x = (canvas.width - newImg.width * scale) / 2;
-                    const y = (canvas.height - newImg.height * scale) / 2;
-                    
                     const newLayer = {
                         img: newImg,
-                        x, y, scale,
+                        x: 0, y: 0, scale: 1, // Will be set by rearrangeLayers
                         isBackground: false
                     };
                     imageLayers[currentEditIndex].push(newLayer);
+                    rearrangeLayers();
                     drawEditorCanvas();
                 };
                 newImg.src = e.target.result;
             };
             reader.readAsDataURL(file);
             addImageInput.value = '';
+        }
+
+        function rearrangeLayers() {
+            const layers = imageLayers[currentEditIndex];
+            const canvasSize = editorCanvas.width;
+            const numImages = layers.length;
+
+            if (numImages === 2) {
+                const layer1 = layers[0];
+                const layer2 = layers[1];
+                const img1 = layer1.img;
+                const img2 = layer2.img;
+
+                // Arrange side-by-side, fitting them into two halves of the canvas
+                const halfWidth = canvasSize / 2;
+
+                const scale1 = halfWidth / img1.width;
+                layer1.scale = scale1;
+                const h1 = img1.height * scale1;
+
+                const scale2 = halfWidth / img2.width;
+                layer2.scale = scale2;
+                const h2 = img2.height * scale2;
+
+                layer1.x = 0;
+                layer1.y = (canvasSize - h1) / 2;
+
+                layer2.x = halfWidth;
+                layer2.y = (canvasSize - h2) / 2;
+
+            } else if (numImages > 2) {
+                // For more than 2, just center the newly added image for simplicity
+                const lastLayer = layers[numImages - 1];
+                const img = lastLayer.img;
+                const scale = Math.min(canvasSize / img.width, canvasSize / img.height) * 0.5; // Make it smaller
+                lastLayer.scale = scale;
+                lastLayer.x = (canvasSize - img.width * scale) / 2;
+                lastLayer.y = (canvasSize - img.height * scale) / 2;
+            }
+            // No need for numImages === 1 case, as that's handled by loadEditorImage's initial layout.
         }
 
         // --- エディタ描画 & 操作 ---
@@ -338,7 +388,6 @@
             }
         }
         
-        // ★★★ 変更点: グリッドを64分割(8x8)に ★★★
         function drawGrid() {
             editorCtx.strokeStyle = 'rgba(128, 128, 128, 0.5)';
             editorCtx.lineWidth = 1;
@@ -518,19 +567,36 @@
                     const ctx = canvas.getContext('2d');
                     
                     if (mode === 'addPadding') {
-                        const size = isInitial ? Math.max(img.width, img.height) : Math.max(layers[0].img.width, layers[0].img.height);
-                        canvas.width = size; canvas.height = size;
-                        ctx.fillStyle = 'white';
-                        ctx.fillRect(0, 0, size, size);
-
                         if (isInitial) {
+                            // isInitial: Create a preview and set up the initial layer object.
+                            // The layer object will be fully initialized with coordinates when the editor opens.
+                            const size = Math.max(img.width, img.height);
+                            canvas.width = size;
+                            canvas.height = size;
+                            ctx.fillStyle = 'white';
+                            ctx.fillRect(0, 0, size, size);
+
                             const scale = Math.min(size / img.width, size / img.height) * 0.862;
                             const x = (size - img.width * scale) / 2;
                             const y = (size - img.height * scale) / 2;
-                            const bgLayer = { img, x, y, scale, isBackground: true };
-                            imageLayers[index] = [bgLayer];
+                            
+                            // Store the image object and a flag. Coordinates will be set on editor load.
+                            if (!imageLayers[index]) {
+                                 imageLayers[index] = [{ img, isBackground: true, needsInitialLayout: true }];
+                            }
+                            
                             ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
                         } else {
+                            // Not isInitial: Saving from the editor.
+                            // The 'layers' have coordinates relative to the editor canvas.
+                            // We create a high-resolution final image based on the original image's size.
+                            const baseLayer = layers.find(l => l.isBackground) || layers[0];
+                            const size = Math.max(baseLayer.img.width, baseLayer.img.height);
+                            canvas.width = size;
+                            canvas.height = size;
+                            ctx.fillStyle = 'white';
+                            ctx.fillRect(0, 0, size, size);
+
                             const editorCanvasSize = editorCanvas.width;
                             const finalScale = size / editorCanvasSize;
                             layers.forEach(layer => {
