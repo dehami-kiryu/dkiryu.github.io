@@ -67,15 +67,22 @@
                     <canvas id="editor-canvas"></canvas>
                 </div>
                 <div class="mt-4 grid grid-cols-3 items-center justify-center gap-4">
-                    <button id="undo-btn" class="p-3 bg-gray-200 rounded-full hover:bg-gray-300 justify-self-center" title="元に戻す">
-                        <svg class="w-5 h-5 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
-                    </button>
+                    <div class="flex gap-2 justify-self-start">
+                        <button id="undo-btn" class="p-3 bg-gray-200 rounded-full hover:bg-gray-300" title="元に戻す">
+                            <svg class="w-5 h-5 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
+                        </button>
+                        <button id="delete-layer-btn" class="p-3 bg-red-200 rounded-full hover:bg-red-300 hidden" title="選択した画像を削除">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-700" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.09-2.134H8.09a2.09 2.09 0 00-2.09 2.134v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                        </button>
+                    </div>
                     <div class="flex items-center gap-2 justify-self-center">
                         <button id="zoom-out-btn" class="p-3 bg-gray-200 rounded-full hover:bg-gray-300">-</button>
                         <span class="text-sm">拡大縮小</span>
                         <button id="zoom-in-btn" class="p-3 bg-gray-200 rounded-full hover:bg-gray-300">+</button>
                     </div>
-                    <button id="add-image-btn" class="p-3 bg-gray-200 rounded-lg hover:bg-gray-300 justify-self-center text-sm">画像を追加</button>
+                    <button id="add-image-btn" class="p-3 bg-gray-200 rounded-lg hover:bg-gray-300 justify-self-end text-sm">画像を追加</button>
                     <input type="file" id="add-image-input" class="hidden" accept="image/*">
                 </div>
                 <div class="mt-6">
@@ -111,6 +118,7 @@
         const addImageBtn = document.getElementById('add-image-btn');
         const addImageInput = document.getElementById('add-image-input');
         const finishEditingBtn = document.getElementById('finish-editing-btn');
+        const deleteLayerBtn = document.getElementById('delete-layer-btn');
         const step1 = document.getElementById('step1');
         const step2 = document.getElementById('step2');
         const step3 = document.getElementById('step3');
@@ -140,6 +148,7 @@
         undoBtn.addEventListener('click', undoChanges);
         addImageBtn.addEventListener('click', () => addImageInput.click());
         addImageInput.addEventListener('change', handleAddImage);
+        deleteLayerBtn.addEventListener('click', handleDeleteLayer);
 
         // --- メイン関数 ---
         function handleFileSelect(event) {
@@ -181,6 +190,7 @@
             step3.classList.add('hidden');
             mainContent.classList.remove('hidden');
             editorView.classList.add('hidden');
+            deleteLayerBtn.classList.add('hidden');
         }
 
         async function saveAllImages() {
@@ -253,7 +263,6 @@
             
             setupEditorCanvas();
 
-            // If the main image layer needs its initial position and scale calculated for the editor.
             if (imageLayers[index] && imageLayers[index][0].needsInitialLayout) {
                 const layer = imageLayers[index][0];
                 const img = layer.img;
@@ -263,7 +272,7 @@
                 layer.x = (canvasSize - img.width * scale) / 2;
                 layer.y = (canvasSize - img.height * scale) / 2;
                 layer.scale = scale;
-                delete layer.needsInitialLayout; // Flag is no longer needed
+                delete layer.needsInitialLayout;
             }
             
             initialLayersState = JSON.parse(JSON.stringify(imageLayers[index].map(layer => ({...layer, img: null}))));
@@ -289,6 +298,7 @@
             mainContent.classList.remove('hidden');
             finishEditingBtn.disabled = false;
             finishEditingBtn.textContent = 'この画像の調整を完了';
+            deleteLayerBtn.classList.add('hidden');
         }
         
         function undoChanges() {
@@ -314,7 +324,7 @@
                 newImg.onload = () => {
                     const newLayer = {
                         img: newImg,
-                        x: 0, y: 0, scale: 1, // Will be set by rearrangeLayers
+                        x: 0, y: 0, scale: 1,
                         isBackground: false
                     };
                     imageLayers[currentEditIndex].push(newLayer);
@@ -327,44 +337,57 @@
             addImageInput.value = '';
         }
 
+        function handleDeleteLayer() {
+            if (!activeLayer || imageLayers[currentEditIndex].length <= 1) {
+                return;
+            }
+            const layers = imageLayers[currentEditIndex];
+            const indexToRemove = layers.findIndex(layer => layer === activeLayer);
+            if (indexToRemove > -1) {
+                layers.splice(indexToRemove, 1);
+                activeLayer = null;
+                deleteLayerBtn.classList.add('hidden');
+                rearrangeLayers();
+                drawEditorCanvas();
+            }
+        }
+
         function rearrangeLayers() {
             const layers = imageLayers[currentEditIndex];
             const canvasSize = editorCanvas.width;
             const numImages = layers.length;
 
-            if (numImages === 2) {
+            if (numImages === 1) {
+                const layer = layers[0];
+                const img = layer.img;
+                const scale = Math.min(canvasSize / img.width, canvasSize / img.height) * 0.862;
+                layer.scale = scale;
+                layer.x = (canvasSize - img.width * scale) / 2;
+                layer.y = (canvasSize - img.height * scale) / 2;
+            } else if (numImages === 2) {
                 const layer1 = layers[0];
                 const layer2 = layers[1];
                 const img1 = layer1.img;
                 const img2 = layer2.img;
-
-                // Arrange side-by-side, fitting them into two halves of the canvas
                 const halfWidth = canvasSize / 2;
-
                 const scale1 = halfWidth / img1.width;
                 layer1.scale = scale1;
                 const h1 = img1.height * scale1;
-
                 const scale2 = halfWidth / img2.width;
                 layer2.scale = scale2;
                 const h2 = img2.height * scale2;
-
                 layer1.x = 0;
                 layer1.y = (canvasSize - h1) / 2;
-
                 layer2.x = halfWidth;
                 layer2.y = (canvasSize - h2) / 2;
-
             } else if (numImages > 2) {
-                // For more than 2, just center the newly added image for simplicity
                 const lastLayer = layers[numImages - 1];
                 const img = lastLayer.img;
-                const scale = Math.min(canvasSize / img.width, canvasSize / img.height) * 0.5; // Make it smaller
+                const scale = Math.min(canvasSize / img.width, canvasSize / img.height) * 0.5;
                 lastLayer.scale = scale;
                 lastLayer.x = (canvasSize - img.width * scale) / 2;
                 lastLayer.y = (canvasSize - img.height * scale) / 2;
             }
-            // No need for numImages === 1 case, as that's handled by loadEditorImage's initial layout.
         }
 
         // --- エディタ描画 & 操作 ---
@@ -379,9 +402,13 @@
             editorCtx.fillStyle = 'white';
             editorCtx.fillRect(0, 0, editorCanvas.width, editorCanvas.height);
             
-            imageLayers[currentEditIndex].forEach(layer => {
-                editorCtx.drawImage(layer.img, layer.x, layer.y, layer.img.width * layer.scale, layer.img.height * layer.scale);
-            });
+            if (imageLayers[currentEditIndex]) {
+                imageLayers[currentEditIndex].forEach(layer => {
+                    if (layer.img) {
+                        editorCtx.drawImage(layer.img, layer.x, layer.y, layer.img.width * layer.scale, layer.img.height * layer.scale);
+                    }
+                });
+            }
             
             if (showGrid) {
                 drawGrid();
@@ -391,16 +418,14 @@
         function drawGrid() {
             editorCtx.strokeStyle = 'rgba(128, 128, 128, 0.5)';
             editorCtx.lineWidth = 1;
-            const divisions = 8; // 8x8 grid = 64 squares
+            const divisions = 8;
             const stepW = editorCanvas.width / divisions;
             const stepH = editorCanvas.height / divisions;
 
             editorCtx.beginPath();
             for (let i = 1; i < divisions; i++) {
-                // Vertical lines
                 editorCtx.moveTo(stepW * i, 0);
                 editorCtx.lineTo(stepW * i, editorCanvas.height);
-                // Horizontal lines
                 editorCtx.moveTo(0, stepH * i);
                 editorCtx.lineTo(editorCanvas.width, stepH * i);
             }
@@ -451,19 +476,20 @@
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
             
-            activeLayer = null;
-            [...imageLayers[currentEditIndex]].reverse().forEach(layer => {
-                if (hitTest(mouseX, mouseY, layer)) {
-                    activeLayer = layer;
-                    return;
-                }
-            });
+            activeLayer = [...imageLayers[currentEditIndex]].reverse().find(layer => hitTest(mouseX, mouseY, layer)) || null;
 
             if (activeLayer) {
                 isDragging = true;
                 startDrag = { x: e.clientX, y: e.clientY };
                 showGrid = true;
                 drawEditorCanvas();
+                if (imageLayers[currentEditIndex].length > 1) {
+                    deleteLayerBtn.classList.remove('hidden');
+                } else {
+                    deleteLayerBtn.classList.add('hidden');
+                }
+            } else {
+                deleteLayerBtn.classList.add('hidden');
             }
         }
 
@@ -503,18 +529,21 @@
             } else if (e.touches.length === 1) {
                 const touchX = e.touches[0].clientX - rect.left;
                 const touchY = e.touches[0].clientY - rect.top;
-                activeLayer = null;
-                [...imageLayers[currentEditIndex]].reverse().forEach(layer => {
-                    if (hitTest(touchX, touchY, layer)) {
-                        activeLayer = layer;
-                        return;
-                    }
-                });
+                
+                activeLayer = [...imageLayers[currentEditIndex]].reverse().find(layer => hitTest(touchX, touchY, layer)) || null;
+                
                 if (activeLayer) {
                     isDragging = true;
                     startDrag = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                     showGrid = true;
                     drawEditorCanvas();
+                    if (imageLayers[currentEditIndex].length > 1) {
+                        deleteLayerBtn.classList.remove('hidden');
+                    } else {
+                        deleteLayerBtn.classList.add('hidden');
+                    }
+                } else {
+                    deleteLayerBtn.classList.add('hidden');
                 }
             }
         }
@@ -568,8 +597,6 @@
                     
                     if (mode === 'addPadding') {
                         if (isInitial) {
-                            // isInitial: Create a preview and set up the initial layer object.
-                            // The layer object will be fully initialized with coordinates when the editor opens.
                             const size = Math.max(img.width, img.height);
                             canvas.width = size;
                             canvas.height = size;
@@ -580,16 +607,12 @@
                             const x = (size - img.width * scale) / 2;
                             const y = (size - img.height * scale) / 2;
                             
-                            // Store the image object and a flag. Coordinates will be set on editor load.
                             if (!imageLayers[index]) {
                                  imageLayers[index] = [{ img, isBackground: true, needsInitialLayout: true }];
                             }
                             
                             ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
                         } else {
-                            // Not isInitial: Saving from the editor.
-                            // The 'layers' have coordinates relative to the editor canvas.
-                            // We create a high-resolution final image based on the original image's size.
                             const baseLayer = layers.find(l => l.isBackground) || layers[0];
                             const size = Math.max(baseLayer.img.width, baseLayer.img.height);
                             canvas.width = size;
@@ -628,7 +651,7 @@
                     reader.onerror = reject;
                     reader.readAsDataURL(file);
                 } else {
-                    process(null); // layers are already loaded
+                    process(null);
                 }
             });
         }
