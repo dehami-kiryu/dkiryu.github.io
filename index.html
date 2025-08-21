@@ -299,7 +299,7 @@
         function initializeImageTransform() {
             const canvas = editorCanvas;
             const img = currentImage;
-            const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.8585;
+            const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.86;
             const x = (canvas.width - img.width * scale) / 2;
             const y = (canvas.height - img.height * scale) / 2;
             imageTransforms[currentEditIndex] = { x, y, scale, initialized: true };
@@ -469,8 +469,8 @@
                             ctx.fillRect(0, 0, size, size);
 
                             if (isInitial) {
-                                // ★★★ 変更点: 余白を14.15%に(0.8575 -> 0.8585) ★★★
-                                const scale = Math.min(size / img.width, size / img.height) * 0.8585;
+                                // ★★★ 変更点: 余白を14%に(0.8585 -> 0.86) ★★★
+                                const scale = Math.min(size / img.width, size / img.height) * 0.86;
                                 const x = (size - img.width * scale) / 2;
                                 const y = (size - img.height * scale) / 2;
                                 ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
