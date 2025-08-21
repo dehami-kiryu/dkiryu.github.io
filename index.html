@@ -662,7 +662,7 @@
                     clearTimeout(timer);
                     resolve(img);
                 };
-                img.onerror = () => {
+                img.onerror = (err) => {
                     clearTimeout(timer);
                     reject(new Error(`画像の読み込みに失敗しました: ${file.name}`));
                 };
