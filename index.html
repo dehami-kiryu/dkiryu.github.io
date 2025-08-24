@@ -12,6 +12,26 @@
         .btn-disabled { opacity: 0.5; cursor: not-allowed; }
         #editor-canvas { touch-action: none; cursor: grab; }
         #editor-canvas:active { cursor: grabbing; }
+        #grid-modal { background-color: rgba(0,0,0,0.5); }
+        /* For Webkit browsers like Chrome, Safari */
+        .horizontal-scroll::-webkit-scrollbar {
+            height: 8px;
+        }
+        .horizontal-scroll::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .horizontal-scroll::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .horizontal-scroll::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -19,17 +39,25 @@
     <div class="container mx-auto p-4 md:p-6 max-w-4xl">
         <header class="text-center mb-6">
             <h1 class="text-3xl md:text-4xl font-bold text-gray-900">画像一括正方形加工</h1>
-            <p class="text-gray-600 mt-2">複数の画像を一度に選択し、お好みの正方形サイズに変換します。</p>
+            <p class="text-gray-600 mt-2">複数の画像を一度に選択するか、グリッドレイアウトを選択して1枚の画像にまとめます。</p>
         </header>
 
         <main id="main-content">
             <!-- ステップ1: 画像選択 -->
             <div id="step1" class="bg-white p-6 rounded-xl shadow-lg mb-6">
-                <h2 class="text-xl font-semibold mb-4 border-b pb-2">ステップ1: 画像を選択</h2>
-                <label for="image-input" class="w-full h-32 flex flex-col justify-center items-center bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
-                    <svg class="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    <span class="mt-2 text-sm text-gray-500">ここをタップして画像を選択</span>
-                </label>
+                <h2 class="text-xl font-semibold mb-4 border-b pb-2">ステップ1: モードを選択</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label for="image-input" class="w-full h-32 flex flex-col justify-center items-center bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                        <svg class="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <span class="mt-2 text-sm text-gray-500">個別加工 (複数選択)</span>
+                    </label>
+                    <button id="grid-select-btn" class="w-full h-32 flex flex-col justify-center items-center bg-blue-50 border-2 border-dashed border-blue-300 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+                        <svg class="w-10 h-10 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                           <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25a2.25 2.25 0 01-2.25-2.25v-2.25z" />
+                        </svg>
+                        <span class="mt-2 text-sm text-blue-500">グリッドで合成</span>
+                    </button>
+                </div>
                 <input type="file" id="image-input" class="hidden" multiple accept="image/*">
                 <div id="preview-container" class="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4"></div>
             </div>
@@ -48,12 +76,14 @@
             <div id="step3" class="bg-white p-6 rounded-xl shadow-lg hidden">
                 <div class="flex justify-between items-center border-b pb-2 mb-4">
                     <h2 class="text-xl font-semibold">ステップ3: 加工結果</h2>
-                    <button id="reset-btn" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-1 px-3 rounded-lg">やり直す</button>
+                    <div class="flex gap-2">
+                        <button id="reset-btn" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-1 px-3 rounded-lg">やり直す</button>
+                    </div>
                 </div>
                 <div id="loading" class="flex flex-col items-center justify-center py-8 hidden"><div class="loader"></div><p class="mt-4 text-gray-600">画像を処理中です...</p></div>
-                <div id="save-section" class="hidden text-center mb-4"><button id="save-all-btn" class="bg-red-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-red-600 shadow-lg text-lg">一括で写真に保存</button></div>
+                <div id="save-section" class="hidden text-center mb-4"><button id="save-all-btn" class="bg-red-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-red-600 shadow-lg text-lg">画像を保存</button></div>
                 <div id="save-instructions" class="hidden text-center bg-blue-50 border-blue-200 text-blue-800 px-4 py-3 rounded-lg mb-4"><p class="text-sm">「余白を追加」で作った画像は、タップで再編集できます。</p></div>
-                <div id="results-container" class="flex flex-col items-center gap-4"></div>
+                <div id="results-container" class="flex overflow-x-auto whitespace-nowrap gap-4 p-4 bg-gray-200 rounded-lg horizontal-scroll"></div>
             </div>
         </main>
         
@@ -95,6 +125,38 @@
             <p id="copyright">&copy; 2025 Image Square Processor. All rights reserved.</p>
         </footer>
     </div>
+    
+    <!-- Grid Selection Modal -->
+    <div id="grid-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-semibold mb-4 text-center">グリッドレイアウトを選択</h3>
+            <div id="grid-options-container" class="grid grid-cols-2 gap-4">
+                <button class="grid-option-btn w-full text-center bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-all shadow-md" data-grid="2x1" data-count="2">2枚 (横)</button>
+                <button class="grid-option-btn w-full text-center bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-all shadow-md" data-grid="1x2" data-count="2">2枚 (縦)</button>
+                <button class="grid-option-btn w-full text-center bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-all shadow-md" data-grid="3x1" data-count="3">3枚 (横)</button>
+                <button class="grid-option-btn w-full text-center bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-all shadow-md" data-grid="1x3" data-count="3">3枚 (縦)</button>
+                <button class="grid-option-btn w-full text-center bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-all shadow-md" data-grid="2x2" data-count="4">4枚 (2x2)</button>
+                <button class="grid-option-btn w-full text-center bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-all shadow-md" data-grid="3x2" data-count="6">6枚 (3x2)</button>
+            </div>
+            <hr class="my-4">
+            <h4 class="text-lg font-semibold mb-2 text-center">カスタムグリッド</h4>
+            <div class="flex items-center gap-4">
+                <input type="number" id="grid-cols-input" placeholder="横 (列)" min="1" max="10" class="w-full p-2 border rounded-md text-center">
+                <span class="text-gray-500">×</span>
+                <input type="number" id="grid-rows-input" placeholder="縦 (行)" min="1" max="10" class="w-full p-2 border rounded-md text-center">
+            </div>
+            <button id="create-custom-grid-btn" class="w-full mt-3 bg-green-500 text-white font-bold py-2 rounded-lg hover:bg-green-600">この設定で作成</button>
+            <button id="close-modal-btn" class="w-full mt-6 bg-gray-200 text-gray-700 font-bold py-2 rounded-lg hover:bg-gray-300">キャンセル</button>
+        </div>
+    </div>
+    
+    <div id="alert-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden" style="background-color: rgba(0,0,0,0.5);">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm text-center">
+            <p id="alert-message" class="mb-4"></p>
+            <button id="alert-ok-btn" class="bg-blue-500 text-white font-bold py-2 px-8 rounded-lg hover:bg-blue-600">OK</button>
+        </div>
+    </div>
+
 
     <script>
         // --- DOM要素 ---
@@ -122,12 +184,23 @@
         const step1 = document.getElementById('step1');
         const step2 = document.getElementById('step2');
         const step3 = document.getElementById('step3');
+        const gridSelectBtn = document.getElementById('grid-select-btn');
+        const gridModal = document.getElementById('grid-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const gridOptionsContainer = document.getElementById('grid-options-container');
+        const gridColsInput = document.getElementById('grid-cols-input');
+        const gridRowsInput = document.getElementById('grid-rows-input');
+        const createCustomGridBtn = document.getElementById('create-custom-grid-btn');
+        const alertModal = document.getElementById('alert-modal');
+        const alertMessage = document.getElementById('alert-message');
+        const alertOkBtn = document.getElementById('alert-ok-btn');
+        
         document.getElementById('copyright').textContent = `© ${new Date().getFullYear()} Image Square Processor. All rights reserved.`;
 
         // --- 状態管理変数 ---
-        let selectedFiles = [];
+        let filesForProcessing = [];
         let processedImages = [];
-        let imageLayers = []; // [ [layer1, layer2], [layer1] ]
+        let imageLayers = [];
         let currentEditIndex = 0;
         const editorCtx = editorCanvas.getContext('2d');
         let activeLayer = null;
@@ -138,6 +211,8 @@
         let initialLayersState = null;
         let initialPinchDistance = 0;
         let pinchStartScale = 1;
+        let selectedGrid = null;
+        let draggedIndex = -1;
 
         // --- イベントリスナー ---
         imageInput.addEventListener('change', handleFileSelect);
@@ -149,13 +224,120 @@
         addImageBtn.addEventListener('click', () => addImageInput.click());
         addImageInput.addEventListener('change', handleAddImage);
         deleteLayerBtn.addEventListener('click', handleDeleteLayer);
+        gridSelectBtn.addEventListener('click', () => gridModal.classList.remove('hidden'));
+        closeModalBtn.addEventListener('click', () => gridModal.classList.add('hidden'));
+        gridOptionsContainer.addEventListener('click', handleGridOptionSelect);
+        createCustomGridBtn.addEventListener('click', handleCustomGridCreate);
+        alertOkBtn.addEventListener('click', () => alertModal.classList.add('hidden'));
+        
+        // --- ドラッグ＆ドロップイベント ---
+        resultsContainer.addEventListener('dragover', e => {
+            e.preventDefault();
+            const draggingElement = document.querySelector('.dragging');
+            if (!draggingElement) return;
+            const afterElement = getDragAfterElement(resultsContainer, e.clientX);
+            if (afterElement == null) {
+                resultsContainer.appendChild(draggingElement);
+            } else {
+                resultsContainer.insertBefore(draggingElement, afterElement);
+            }
+        });
+
+        resultsContainer.addEventListener('drop', e => {
+            e.preventDefault();
+            const draggingElement = document.querySelector('.dragging');
+            if (!draggingElement) return;
+
+            const newIndex = Array.from(resultsContainer.children).indexOf(draggingElement);
+            
+            if (draggedIndex !== newIndex) {
+                const [movedImage] = processedImages.splice(draggedIndex, 1);
+                processedImages.splice(newIndex, 0, movedImage);
+
+                const [movedLayer] = imageLayers.splice(draggedIndex, 1);
+                imageLayers.splice(newIndex, 0, movedLayer);
+                
+                displayResults();
+            }
+        });
+
+        function getDragAfterElement(container, x) {
+            const draggableElements = [...container.querySelectorAll('.draggable:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = x - box.left - box.width / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+
+        // --- カスタムアラート ---
+        function showAlert(message) {
+            alertMessage.textContent = message;
+            alertModal.classList.remove('hidden');
+        }
 
         // --- メイン関数 ---
+        function handleGridOptionSelect(event) {
+            const button = event.target.closest('.grid-option-btn');
+            if (!button) return;
+            selectedGrid = {
+                layout: button.dataset.grid,
+                count: parseInt(button.dataset.count, 10),
+            };
+            gridModal.classList.add('hidden');
+            showAlert(`${selectedGrid.count}枚の画像を選択してください。`);
+            imageInput.click();
+        }
+
+        function handleCustomGridCreate() {
+            const cols = parseInt(gridColsInput.value, 10);
+            const rows = parseInt(gridRowsInput.value, 10);
+
+            if (isNaN(cols) || isNaN(rows) || cols < 1 || rows < 1 || cols > 10 || rows > 10) {
+                showAlert("横・縦には1から10までの有効な数字を入力してください。");
+                return;
+            }
+            const count = cols * rows;
+            selectedGrid = { layout: `${cols}x${rows}`, count };
+            gridModal.classList.add('hidden');
+            showAlert(`${count}枚の画像を選択してください。`);
+            imageInput.click();
+        }
+
         function handleFileSelect(event) {
-            selectedFiles = Array.from(event.target.files);
-            if (selectedFiles.length === 0) return;
-            resetApp(false);
-            selectedFiles.forEach(file => {
+            const newFiles = Array.from(event.target.files);
+            if (newFiles.length === 0) {
+                 selectedGrid = null;
+                 return;
+            }
+            
+            if (selectedGrid) {
+                if (newFiles.length !== selectedGrid.count) {
+                    showAlert(`グリッドには${selectedGrid.count}枚の画像が必要です。`);
+                    selectedGrid = null;
+                } else {
+                    processAndAppendGrid(newFiles);
+                }
+            } else { // Individual processing
+                filesForProcessing = newFiles;
+                displayPreviewsAndOptions();
+            }
+            imageInput.value = '';
+        }
+        
+        function displayPreviewsAndOptions() {
+            if (filesForProcessing.length === 0) return;
+            
+            step3.classList.add('hidden');
+            previewContainer.innerHTML = ''; 
+            
+            step1.classList.remove('hidden');
+            filesForProcessing.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = e => {
                     const img = document.createElement('img');
@@ -167,25 +349,26 @@
             });
             step2.classList.remove('hidden');
         }
-        
+
         function handleProcessRequest(event) {
             const button = event.target.closest('.process-btn');
             if (!button) return;
             const mode = button.dataset.mode;
-            processAndDisplay(mode, mode === 'addPadding');
+            processAndAppendIndividual(filesForProcessing, mode);
         }
 
         function resetApp(fullReset) {
             if (fullReset) {
-                selectedFiles = [];
+                filesForProcessing = [];
+                processedImages = [];
+                imageLayers = [];
                 imageInput.value = '';
+                selectedGrid = null;
             }
-            processedImages = [];
-            imageLayers = [];
             currentEditIndex = 0;
             previewContainer.innerHTML = '';
             resultsContainer.innerHTML = '';
-            step1.classList.toggle('hidden', !fullReset);
+            step1.classList.remove('hidden');
             step2.classList.add('hidden');
             step3.classList.add('hidden');
             mainContent.classList.remove('hidden');
@@ -194,7 +377,11 @@
         }
 
         async function saveAllImages() {
-            if (processedImages.length === 0 || !navigator.share) return;
+            if (processedImages.length === 0) return;
+            if (!navigator.share) {
+                showAlert("お使いのブラウザは共有機能に対応していません。");
+                return;
+            }
             saveAllBtn.classList.add('btn-disabled');
             saveAllBtn.textContent = '準備中...';
             try {
@@ -203,76 +390,184 @@
                     const blob = await res.blob();
                     return new File([blob], result.name, { type: blob.type });
                 }));
-                if (navigator.canShare({ files: filesToShare })) {
+                if (navigator.canShare && navigator.canShare({ files: filesToShare })) {
                     await navigator.share({ files: filesToShare });
+                } else {
+                     showAlert("ファイルの共有に失敗しました。");
                 }
             } catch (error) {
                 console.log('共有がキャンセルされたか、エラーが発生しました:', error);
             } finally {
                 saveAllBtn.classList.remove('btn-disabled');
-                saveAllBtn.textContent = '一括で写真に保存';
+                saveAllBtn.textContent = '画像を保存';
             }
         }
-
-        // --- 画像処理フロー ---
-        async function processAndDisplay(mode, isEditable) {
-            if (selectedFiles.length === 0) return;
+        
+        async function processAndAppendIndividual(files, mode) {
+            step2.classList.add('hidden');
+            previewContainer.innerHTML = ''; 
             step3.classList.remove('hidden');
             loading.classList.remove('hidden');
-            resultsContainer.innerHTML = '';
             saveSection.classList.add('hidden');
-            saveInstructions.classList.add('hidden');
+
+            const currentTotalCount = processedImages.length;
+
+            const promises = files.map((file, index) =>
+                createImageData(file, mode, currentTotalCount + index, null, true)
+            );
+            const newProcessedImages = await Promise.all(promises);
+
+            processedImages = processedImages.concat(newProcessedImages);
             
-            const promises = selectedFiles.map((file, index) => createImageData(file, mode, index, null, true));
-            processedImages = await Promise.all(promises);
-            
-            displayResults(mode, isEditable);
+            displayResults();
         }
 
-        function displayResults(mode, isEditable) {
+        async function processAndAppendGrid(files) {
+            step2.classList.add('hidden');
+            previewContainer.innerHTML = '';
+            step3.classList.remove('hidden');
+            loading.classList.remove('hidden');
+            saveSection.classList.add('hidden');
+
+            const compositeImage = await createCompositeImage(files, selectedGrid.layout);
+            processedImages.push(compositeImage);
+            selectedGrid = null;
+
+            displayResults();
+        }
+
+        function createCompositeImage(files, layout) {
+            return new Promise(async (resolve, reject) => {
+                const [cols, rows] = layout.split('x').map(Number);
+                const images = await Promise.all(files.map(fileToImage));
+                
+                const canvasSize = 2000;
+                const canvas = document.createElement('canvas');
+                canvas.width = canvasSize;
+                canvas.height = canvasSize;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+                const margin = canvasSize * 0.01;
+
+                const totalGridWidth = canvasSize - margin * (cols + 1);
+                const totalGridHeight = canvasSize - margin * (rows + 1);
+                
+                const cellWidth = totalGridWidth / cols;
+                const cellHeight = totalGridHeight / rows;
+
+                images.forEach((img, i) => {
+                    const row = Math.floor(i / cols);
+                    const col = i % cols;
+
+                    const cellDx = margin + col * (cellWidth + margin);
+                    const cellDy = margin + row * (cellHeight + margin);
+
+                    const imgAspectRatio = img.width / img.height;
+                    const cellAspectRatio = cellWidth / cellHeight;
+                    let dw, dh;
+
+                    if (imgAspectRatio > cellAspectRatio) {
+                        dw = cellWidth;
+                        dh = dw / imgAspectRatio;
+                    } else {
+                        dh = cellHeight;
+                        dw = dh * imgAspectRatio;
+                    }
+
+                    const dx = cellDx + (cellWidth - dw) / 2;
+                    const dy = cellDy + (cellHeight - dh) / 2;
+
+                    ctx.drawImage(img, 0, 0, img.width, img.height, dx, dy, dw, dh);
+                });
+                
+                resolve({
+                    dataUrl: canvas.toDataURL('image/jpeg', 0.9),
+                    name: `grid_composite.jpg`,
+                    isGrid: true
+                });
+            });
+        }
+
+        function fileToImage(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function displayResults() {
             loading.classList.add('hidden');
             resultsContainer.innerHTML = '';
+            step1.classList.remove('hidden');
+            
+            const hasEditableContent = processedImages.some(p => !p.isGrid);
+            if (hasEditableContent) {
+                saveInstructions.classList.remove('hidden');
+            } else {
+                saveInstructions.classList.add('hidden');
+            }
+            
+            resultsContainer.classList.add('overflow-x-auto', 'whitespace-nowrap', 'p-4', 'bg-gray-200', 'horizontal-scroll');
+            resultsContainer.classList.remove('items-center', 'flex-col');
+
+
             processedImages.forEach((result, index) => {
                 const img = document.createElement('img');
                 img.src = result.dataUrl;
-                img.className = 'w-full max-w-sm h-auto object-cover rounded-lg shadow-md';
-                
-                if (isEditable) {
+                img.dataset.index = index;
+                img.draggable = true;
+                img.classList.add('draggable');
+
+                img.addEventListener('dragstart', () => {
+                    draggedIndex = parseInt(img.dataset.index, 10);
+                    img.classList.add('dragging');
+                });
+                img.addEventListener('dragend', () => {
+                    img.classList.remove('dragging');
+                });
+
+                if (result.isGrid) {
+                     img.className += ' h-80 w-auto object-contain rounded-lg shadow-md flex-shrink-0';
+                } else {
+                    img.className += ' h-80 w-auto object-contain rounded-lg shadow-md flex-shrink-0';
                     img.classList.add('cursor-pointer', 'hover:opacity-80', 'transition-opacity');
-                    img.addEventListener('click', () => openEditorForImage(index, mode));
+                    img.addEventListener('click', () => openEditorForImage(index));
                 }
                 resultsContainer.appendChild(img);
             });
-            if (navigator.share && navigator.canShare) {
+
+            if (processedImages.length > 0) {
                 saveSection.classList.remove('hidden');
+                saveAllBtn.textContent = processedImages.length > 1 ? '一括で写真に保存' : '画像を保存';
             }
-            saveInstructions.classList.remove('hidden');
         }
 
         // --- 個別編集フロー ---
-        function openEditorForImage(index, mode) {
+        function openEditorForImage(index) {
             mainContent.classList.add('hidden');
             editorView.classList.remove('hidden');
-            loadEditorImage(index, mode);
+            loadEditorImage(index);
         }
 
-        function loadEditorImage(index, mode) {
+        function loadEditorImage(index) {
             currentEditIndex = index;
             editorTitle.textContent = '写真の調整';
-            editorProgress.textContent = `画像 ${index + 1} / ${selectedFiles.length}`;
+            editorProgress.textContent = `画像 ${index + 1} / ${processedImages.length}`;
             
             setupEditorCanvas();
 
             if (imageLayers[index] && imageLayers[index][0].needsInitialLayout) {
-                const layer = imageLayers[index][0];
-                const img = layer.img;
-                const canvasSize = editorCanvas.width;
-                
-                const scale = Math.min(canvasSize / img.width, canvasSize / img.height) * 0.862;
-                layer.x = (canvasSize - img.width * scale) / 2;
-                layer.y = (canvasSize - img.height * scale) / 2;
-                layer.scale = scale;
-                delete layer.needsInitialLayout;
+                rearrangeLayers();
+                delete imageLayers[index][0].needsInitialLayout;
             }
             
             initialLayersState = JSON.parse(JSON.stringify(imageLayers[index].map(layer => ({...layer, img: null}))));
@@ -286,6 +581,16 @@
 
             const index = currentEditIndex;
             const layers = imageLayers[index];
+            if (!layers || layers.length === 0) {
+                 showAlert("編集する画像がありません。");
+                 editorView.classList.add('hidden');
+                 mainContent.classList.remove('hidden');
+                 finishEditingBtn.disabled = false;
+                 finishEditingBtn.textContent = 'この画像の調整を完了';
+                 processedImages.splice(index, 1);
+                 displayResults();
+                 return;
+            }
             const updatedImage = await createImageData(null, 'addPadding', index, layers, false);
             processedImages[index] = updatedImage;
 
@@ -318,42 +623,38 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = e => {
-                const newImg = new Image();
-                newImg.onload = () => {
-                    const newLayer = {
-                        img: newImg,
-                        x: 0, y: 0, scale: 1,
-                        isBackground: false
-                    };
-                    imageLayers[currentEditIndex].push(newLayer);
-                    rearrangeLayers();
-                    drawEditorCanvas();
+            fileToImage(file).then(newImg => {
+                const newLayer = {
+                    img: newImg,
+                    x: 0, y: 0, scale: 1,
+                    isBackground: false
                 };
-                newImg.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
+                imageLayers[currentEditIndex].push(newLayer);
+                rearrangeLayers();
+                drawEditorCanvas();
+            });
             addImageInput.value = '';
         }
 
         function handleDeleteLayer() {
-            if (!activeLayer || imageLayers[currentEditIndex].length <= 1) {
-                return;
-            }
+            if (!activeLayer) return;
             const layers = imageLayers[currentEditIndex];
             const indexToRemove = layers.findIndex(layer => layer === activeLayer);
+            
             if (indexToRemove > -1) {
                 layers.splice(indexToRemove, 1);
                 activeLayer = null;
                 deleteLayerBtn.classList.add('hidden');
-                rearrangeLayers();
+                if (layers.length > 0) {
+                    rearrangeLayers();
+                }
                 drawEditorCanvas();
             }
         }
 
         function rearrangeLayers() {
             const layers = imageLayers[currentEditIndex];
+            if (!layers || layers.length === 0) return;
             const canvasSize = editorCanvas.width;
             const numImages = layers.length;
 
@@ -365,25 +666,23 @@
                 layer.x = (canvasSize - img.width * scale) / 2;
                 layer.y = (canvasSize - img.height * scale) / 2;
             } else if (numImages === 2) {
-                const layer1 = layers[0];
-                const layer2 = layers[1];
-                const img1 = layer1.img;
-                const img2 = layer2.img;
+                const [layer1, layer2] = layers;
+                const [img1, img2] = [layer1.img, layer2.img];
                 const halfWidth = canvasSize / 2;
-                const scale1 = halfWidth / img1.width;
-                layer1.scale = scale1;
-                const h1 = img1.height * scale1;
-                const scale2 = halfWidth / img2.width;
-                layer2.scale = scale2;
-                const h2 = img2.height * scale2;
+                
+                layer1.scale = halfWidth / img1.width;
+                const h1 = img1.height * layer1.scale;
                 layer1.x = 0;
                 layer1.y = (canvasSize - h1) / 2;
+
+                layer2.scale = halfWidth / img2.width;
+                const h2 = img2.height * layer2.scale;
                 layer2.x = halfWidth;
                 layer2.y = (canvasSize - h2) / 2;
-            } else if (numImages > 2) {
+            } else {
                 const lastLayer = layers[numImages - 1];
                 const img = lastLayer.img;
-                const scale = Math.min(canvasSize / img.width, canvasSize / img.height) * 0.5;
+                const scale = Math.min(canvasSize / img.width, canvasSize / img.height) * 0.4;
                 lastLayer.scale = scale;
                 lastLayer.x = (canvasSize - img.width * scale) / 2;
                 lastLayer.y = (canvasSize - img.height * scale) / 2;
@@ -453,6 +752,7 @@
         zoomOutBtn.addEventListener('click', () => changeZoom(0.9));
         editorCanvas.addEventListener('wheel', e => { 
             e.preventDefault();
+            if (!activeLayer) return;
             const rect = editorCanvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
@@ -476,18 +776,14 @@
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
             
-            activeLayer = [...imageLayers[currentEditIndex]].reverse().find(layer => hitTest(mouseX, mouseY, layer)) || null;
+            activeLayer = [...(imageLayers[currentEditIndex] || [])].reverse().find(layer => hitTest(mouseX, mouseY, layer)) || null;
 
             if (activeLayer) {
                 isDragging = true;
                 startDrag = { x: e.clientX, y: e.clientY };
                 showGrid = true;
                 drawEditorCanvas();
-                if (imageLayers[currentEditIndex].length > 1) {
-                    deleteLayerBtn.classList.remove('hidden');
-                } else {
-                    deleteLayerBtn.classList.add('hidden');
-                }
+                deleteLayerBtn.classList.remove('hidden');
             } else {
                 deleteLayerBtn.classList.add('hidden');
             }
@@ -522,26 +818,23 @@
             const rect = editorCanvas.getBoundingClientRect();
             if (e.touches.length >= 2) {
                 isDragging = false;
+                if (!activeLayer) return;
                 initialPinchDistance = getPinchDistance(e.touches);
-                pinchStartScale = activeLayer ? activeLayer.scale : 1;
+                pinchStartScale = activeLayer.scale;
                 showGrid = true;
                 drawEditorCanvas();
             } else if (e.touches.length === 1) {
                 const touchX = e.touches[0].clientX - rect.left;
                 const touchY = e.touches[0].clientY - rect.top;
                 
-                activeLayer = [...imageLayers[currentEditIndex]].reverse().find(layer => hitTest(touchX, touchY, layer)) || null;
+                activeLayer = [...(imageLayers[currentEditIndex] || [])].reverse().find(layer => hitTest(touchX, touchY, layer)) || null;
                 
                 if (activeLayer) {
                     isDragging = true;
                     startDrag = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                     showGrid = true;
                     drawEditorCanvas();
-                    if (imageLayers[currentEditIndex].length > 1) {
-                        deleteLayerBtn.classList.remove('hidden');
-                    } else {
-                        deleteLayerBtn.classList.add('hidden');
-                    }
+                    deleteLayerBtn.classList.remove('hidden');
                 } else {
                     deleteLayerBtn.classList.add('hidden');
                 }
@@ -602,17 +895,17 @@
                             canvas.height = size;
                             ctx.fillStyle = 'white';
                             ctx.fillRect(0, 0, size, size);
-
                             const scale = Math.min(size / img.width, size / img.height) * 0.862;
                             const x = (size - img.width * scale) / 2;
                             const y = (size - img.height * scale) / 2;
-                            
                             if (!imageLayers[index]) {
                                  imageLayers[index] = [{ img, isBackground: true, needsInitialLayout: true }];
                             }
-                            
                             ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
                         } else {
+                            if (!layers || layers.length === 0) {
+                                return resolve(null);
+                            }
                             const baseLayer = layers.find(l => l.isBackground) || layers[0];
                             const size = Math.max(baseLayer.img.width, baseLayer.img.height);
                             canvas.width = size;
@@ -641,15 +934,7 @@
                 };
 
                 if (isInitial) {
-                    const reader = new FileReader();
-                    reader.onload = e => {
-                        const img = new Image();
-                        img.onload = () => process(img);
-                        img.onerror = reject;
-                        img.src = e.target.result;
-                    };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
+                    fileToImage(file).then(process).catch(reject);
                 } else {
                     process(null);
                 }
